@@ -1024,6 +1024,18 @@ export class Player {
     }
   }
 
+  private parseUnitsJSON(json: string): Units {
+    try {
+      const units: unknown = JSON.parse(json);
+      if (!Units.isUnits(units)) {
+        throw new Error('not a units object');
+      }
+
+      return units;
+    } catch (err) {
+      throw new Error('Unable to parse Units input ' + err);
+    }
+  }
   protected runInput(input: InputResponse, pi: PlayerInput): void {
     if (pi instanceof AndOptions) {
       this.checkInputLength(input, pi.options.length);
@@ -1141,8 +1153,14 @@ export class Player {
       }
       this.runInputCb(pi.cb(howToPay));
     } else if (pi instanceof SelectProductionToLose) {
-      // TODO(kberg): I'm sure there's some input validation required.
-      const units: Units = JSON.parse(input[0][0]);
+      this.checkInputLength(input, 1, 1);
+      const units: Units = this.parseUnitsJSON(input[0][0]);
+      if (!Units.keys.every((k) => units[k] >= 0)) {
+        throw new Error('All units must be positive');
+      }
+      if (!this.hasUnits(units)) {
+        throw new Error('You do not have those units');
+      }
       pi.cb(units);
     } else if (pi instanceof ShiftAresGlobalParameters) {
       // TODO(kberg): I'm sure there's some input validation required.
@@ -1942,7 +1960,7 @@ export class Player {
         // sell patents is not displayed as a card
         case CardName.SELL_PATENTS_STANDARD_PROJECT:
           return false;
-          // For buffer gas, show ONLY IF in solo AND 63TR mode
+        // For buffer gas, show ONLY IF in solo AND 63TR mode
         case CardName.BUFFER_GAS_STANDARD_PROJECT:
           return this.game.isSoloMode() && this.game.gameOptions.soloTR;
         case CardName.AIR_SCRAPPING_STANDARD_PROJECT:
